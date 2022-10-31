@@ -1,0 +1,35 @@
+https://www.youtube.com/watch?v=H2GCkRF9eko&list=PLmxm9zUrp-pO-Z53acQ-M1v65sOa_uGlv&index=8&t=762s
+
+
+{
+  message_id: 533,
+  from: {
+    id: 317401874,
+    is_bot: false,
+    first_name: 'Alexey',
+    username: 'Vsemoguschin',
+    language_code: 'ru'
+  },
+  chat: {
+    id: 317401874,
+    first_name: 'Alexey',
+    username: 'Vsemoguschin',
+    type: 'private'
+  },
+  date: 1667165981,
+  document: {
+    file_name: 'IMG_9905.MP4',
+    mime_type: 'video/mp4',
+    thumb: {
+      file_id: 'AAMCAgADGQEAAgIVY17vHb3C2cW6n9R9EP5Rf7WagXgAAm4iAALzl_lKJeRqjg09DEwBAAdtAAMqBA',
+      file_unique_id: 'AQADbiIAAvOX-Upy',
+      file_size: 11435,
+      width: 242,
+      height: 320
+    },
+    file_id: 'BQACAgIAAxkBAAICFWNe7x29wtnFup_UfRD-UX-1moF4AAJuIgAC85f5SiXkao4NPQxMKgQ',
+    file_unique_id: 'AgADbiIAAvOX-Uo',
+    file_size: 281703
+  },
+  caption: 'Лчьчьч'
+}
