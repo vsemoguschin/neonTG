@@ -27,14 +27,19 @@ const { DataTypes } = require('sequelize');
 
 const Order = sequelize.define('order', {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    name: { type: DataTypes.STRING, allowNull: false },
-    owner: { type: DataTypes.INTEGER, allowNull: false },
+    order_name: { type: DataTypes.STRING, allowNull: false },
+    file_id: { type: DataTypes.STRING, allowNull: false },
+    photo_id: { type: DataTypes.STRING, allowNull: false },
+    //img_id
+    description: { type: DataTypes.STRING, allowNull: false },
+    manager_id: { type: DataTypes.INTEGER, allowNull: false },
+    manager_name: { type: DataTypes.STRING, allowNull: false },
     master_id: { type: DataTypes.INTEGER },
     master_name: { type: DataTypes.STRING },
-    // file: { type: DataTypes.INTEGER, allowNull: false },
-    msg_file_id: { type: DataTypes.INTEGER, allowNull: false },
-    msg_desc_id: { type: DataTypes.INTEGER, allowNull: false },
-    condition: { type: DataTypes.INTEGER, defaultValue: 0 },
+    condition: { type: DataTypes.STRING, defaultValue: 'Ждёт фрезеровку' },
+    is_done: { type: DataTypes.BOOLEAN, defaultValue: false },
+    is_important: { type: DataTypes.BOOLEAN, defaultValue: false },
+    delivery: { type: DataTypes.STRING },
 })
 
 // User.hasOne(UserOrders);

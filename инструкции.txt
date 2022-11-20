@@ -1,2 +1,18 @@
 https://www.youtube.com/watch?v=H2GCkRF9eko&list=PLmxm9zUrp-pO-Z53acQ-M1v65sOa_uGlv&index=8&t=762s
 
+-------------------------------------------------------------------------------------------------
+// var XMLHttpRequest = require('xhr2');
+// var xhr = new XMLHttpRequest();
+
+// xhr.onreadystatechange = function () {
+//     console.log(this.responseText)
+// }
+
+// xhr.open('GET', `https://api.telegram.org/bot5575099005:AAFREUhpqvo12MIMn-8OumJylxogNkEV1us/getFile?file_id=AgACAgIAAxkBAAIXUWN2WKhIGJP4aq1V_oMqKcMSjy87AALFwTEbSdy5Swe0iydU98qgAQADAgADeAADKwQ`, true);
+// xhr.send();
+// if (xhr.status != 200) {
+//     console.log(xhr.status + ': ' + xhr.statusText); // пример вывода: 404: Not Found
+// } else {
+//     console.log(xhr.responseText); // responseText -- текст ответа.
+// }
+-------------------------------------------------------------------------------------------------
