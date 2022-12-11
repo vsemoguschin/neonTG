@@ -1,1 +1,27 @@
 require nodejs
+{
+  message_id: 8896,
+  from: {
+    id: 317401874,
+    is_bot: false,
+    first_name: 'Alexey',
+    username: 'Vsemoguschin',
+    language_code: 'ru'
+  },
+  chat: {
+    id: 317401874,
+    first_name: 'Alexey',
+    username: 'Vsemoguschin',
+    type: 'private'
+  },
+  date: 1669235361,
+  text: 'в'
+}
+
+const {
+    message_id,
+    chat:{
+        id,
+        username,
+    }
+}

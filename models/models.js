@@ -26,14 +26,15 @@ const { DataTypes } = require('sequelize');
 
 
 const Order = sequelize.define('order', {
-    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    order_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     order_name: { type: DataTypes.STRING, allowNull: false },
     file_id: { type: DataTypes.STRING, allowNull: false },
-    photo_id: { type: DataTypes.STRING, allowNull: false },
-    //img_id
+    img_id: { type: DataTypes.STRING, allowNull: false },
     description: { type: DataTypes.STRING, allowNull: false },
     manager_id: { type: DataTypes.INTEGER, allowNull: false },
     manager_name: { type: DataTypes.STRING, allowNull: false },
+    // neon_length: { type: DataTypes.INTEGER, allowNull: false },
+    // power: { type: DataTypes.INTEGER, allowNull: false },
     master_id: { type: DataTypes.INTEGER },
     master_name: { type: DataTypes.STRING },
     condition: { type: DataTypes.STRING, defaultValue: 'Ждёт фрезеровку' },
