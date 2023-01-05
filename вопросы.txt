@@ -25,3 +25,5 @@ const {
         username,
     }
 }
+parolotpostgresql
+зфкщдщезщыепкуыйд

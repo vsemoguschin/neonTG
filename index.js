@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const sequelize = require('./db');
-const { Op, where } = require('sequelize')
+const { Op } = require('sequelize')
 const models = require('./models/models');
 const TelegramAPI = require('node-telegram-bot-api');
 const { Order } = require('./models/models');
@@ -12,7 +12,7 @@ const request = require('request');
 const { resolve } = require('path');
 const { rejects } = require('assert');
 const { measureMemory } = require('vm');
-// const webApp = window.Telegram.WebApp;
+// const webApp = window.Telegram.WebApp; 
 
 // const PORT = process.env.PORT || 5000;
 const app = express();
@@ -30,7 +30,6 @@ const users = {
     ]
     // max: 368152093,
 }
-users.managers.map(el => console.log(el.id));
 
 
 //Команды бота
@@ -66,6 +65,26 @@ const orderConditions = {
     done: 'Заказ выполнен',
 }
 
+// Инфо как првавильно присылать код
+const aboutNeonCodes = `Отправь данные неона.
+Пример 6к3.5.
+Первое значение - толщина неона(6 или 8);
+Второе значение - код цвета:
+    к - красный,
+    с - синий,
+    з - зеленый,
+    о - оранжевый,
+    г - голубой,
+    р - розовый,
+    б - берюзовый,
+    х - холодный белый,
+    т - тёплый белый.
+Третье значение - длина неона(через точку и один знак после);
+6к3.5 читается как неон 6мм красный 3.5 метра.
+Если в заказе несколько цветов то через пробел описать способом выше
+Например: 6к3.5 6с4.6
+`
+
 //Основное меню
 const workMenu = {
     reply_markup: JSON.stringify({
@@ -97,7 +116,7 @@ const start = async () => {
         await sequelize.authenticate();
         await sequelize.sync();
         users.managers.forEach(user => bot.sendMessage(user.id, 'Погнали!'));
-        users.managers.forEach(user => manager(user.id));
+        users.managers.forEach(user => createOrder(user.id));
     } catch (e) {
         console.log(e);
     }
@@ -105,7 +124,6 @@ const start = async () => {
 
 //Запуск бота
 start();
-
 //Функции менеджера
 const manager = async (userID, lastMsg = []) => {
     let messageHistory = lastMsg;
@@ -113,8 +131,9 @@ const manager = async (userID, lastMsg = []) => {
     botMsg.then(msg => messageHistory.push(msg.message_id));
     try {
         bot.on('message', async function managerListener(msg) {
+            // console.log(msg);
             const chatId = msg.chat.id;
-            if (chatId == userID) {
+            if (chatId == userID || msg.text != undefined) {
                 const msgText = msg.text;
                 const userMsg = msg.message_id;
                 if (chatId == userID) {
@@ -129,6 +148,7 @@ const manager = async (userID, lastMsg = []) => {
                         await clearChat(userID, messageHistory);
                         const shownOrders = showOrders(userID, { is_done: false });
                         shownOrders.then(async (orders) => {
+                            console.log(orders);
                             const botMsgs = orders.map(order => order.message_id)
                             messageHistory = botMsgs;
                             const botMsg = botSendMessage(userID, "Активные заказы", managerMenu);
@@ -154,21 +174,21 @@ const manager = async (userID, lastMsg = []) => {
                         })
                         return bot.removeListener('message', managerListener);
                     }
-                    if (msgText.slice(0, 6) == '/send_') {
-                        messageHistory.push(userMsg);
-                        await clearChat(userID, messageHistory);
-                        bot.removeListener('message', managerListener);
-                        return await getDeliveryDatas(userID, +msgText.slice(6));
-                    }
-                    if (msgText.slice(0, 6) == '/file_') {
-                        return getFile(userID, +msgText.slice(6));
-                    }
-                    if (msgText.slice(0, 6) == '/edit_') {
-                        messageHistory.push(userMsg);
-                        await clearChat(userID, messageHistory);
-                        bot.removeListener('message', managerListener);
-                        return await editOrder(userID, +msgText.slice(6));
-                    }
+                    // if (msgText.slice(0, 6) == '/send_') {
+                    //     messageHistory.push(userMsg);
+                    //     await clearChat(userID, messageHistory);
+                    //     bot.removeListener('message', managerListener);
+                    //     return await getDeliveryDatas(userID, +msgText.slice(6));
+                    // }
+                    // if (msgText.slice(0, 6) == '/file_') {
+                    //     return getFile(userID, +msgText.slice(6));
+                    // }
+                    // if (msgText.slice(0, 6) == '/edit_') {
+                    //     messageHistory.push(userMsg);
+                    //     await clearChat(userID, messageHistory);
+                    //     bot.removeListener('message', managerListener);
+                    //     return await editOrder(userID, +msgText.slice(6));
+                    // }
                     // if (msg.text === "/start") {
                     //     messageHistory.push(userMsg);
                     //     bot.removeListener('message', managerListener);
@@ -177,8 +197,7 @@ const manager = async (userID, lastMsg = []) => {
                     // }
                     if (msgText !== 'Все заказы' &&
                         msgText !== 'Создать заказ' &&
-                        msgText !== 'Мои заказы' &&
-                        msgText.slice(0, 6) !== '/send_') {
+                        msgText !== 'Мои заказы') {
                         messageHistory.push(userMsg);
                         const botMsg = botSendMessage(chatId, "Используй команды клавиатуры для выбора", managerMenu);
                         botMsg.then(msg => messageHistory.push(msg.message_id))
@@ -259,9 +278,139 @@ async function botSendPhoto(chatId, photo_id, caption, forms) {
 // const res = botSendMessage(317401874, encodeURI('text dscef dsc'), encodeURI(managerMenu.reply_markup));
 // res.then((el) => { console.log(el) })
 
-
 // создание заказа и внесение в БД
 const createOrder = async (userID) => {
+    let messageHistory = [];
+    const infoText = "Отправь изображение заказа"
+    const newOrder = {
+        manager_id: userID,
+        // file_id: null,
+        // description: null,
+    }
+    let orderPreview = {
+        description: '',
+    }
+    try {
+        const botMsg = botSendMessage(userID, infoText, cancelOption);
+        botMsg.then(msg => messageHistory.push(msg.message_id));
+        bot.on('message', async function dataListener(msg) {
+            const chatId = msg.chat.id;
+            newOrder.manager_name = msg.from.username;
+            if (chatId == userID) {
+                const userMsg = msg.message_id;
+                if (!newOrder.img_id && msg.text !== 'Отменить') {
+                    if (!!msg.photo) {
+                        clearChat(userID, messageHistory);
+                        messageHistory = []
+                        const HDPhoto = msg.photo.length - 1;
+                        newOrder.img_id = msg.photo[HDPhoto].file_id;
+                        bot.deleteMessage(userID, userMsg);
+                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI('Изображение загружено!\nОтправь название заказа(называй осмыслено!)'), cancelOption);
+                        preview.then(msg => messageHistory.push(msg.message_id));
+                        // const botMsg = botSendMessage(userID, `Отправь название заказа`, cancelOption);
+                        // botMsg.then(msg => messageHistory.push(msg.message_id));
+                        return;
+                    } else {
+                        await clearChat(userID, messageHistory);
+                        messageHistory = [];
+                        bot.deleteMessage(userID, userMsg)
+                        const botMsg = botSendMessage(userID, `Отправь изображение заказа. Быстрая отправка. В формате .jpg`, cancelOption);
+                        botMsg.then(msg => messageHistory.push(msg.message_id));
+                        return;
+                    };
+                }
+                if (!newOrder.order_name && msg.text !== 'Отменить') {
+                    bot.deleteMessage(userID, userMsg)
+                    clearChat(userID, messageHistory);
+                    messageHistory = [];
+                    newOrder.order_name = msg.text;
+                    orderPreview.description = `<b>Название заказа:</b> <i>${newOrder.order_name}</i>\n`;
+                    const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\n' + aboutNeonCodes), cancelOption);
+                    preview.then(msg => messageHistory.push(msg.message_id));
+                    // const botMsg = botSendMessage(userID, aboutNeonCodes, cancelOption);
+                    // botMsg.then(msg => messageHistory.push(msg.message_id));
+                    return
+                }
+                if (!newOrder.neon && msg.text !== 'Отменить') {
+                    clearChat(userID, messageHistory);
+                    messageHistory = [];
+                    const neonInfo = await neonCalc(msg.text);
+                    bot.deleteMessage(userID, userMsg);
+                    if (neonInfo !== undefined) {
+                        orderPreview.description += '<b>Неон:</b> ' + neonInfo.neon + '\n<b>Блок:</b>' + neonInfo.power + 'W';
+                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description), cancelOption);
+                        preview.then(msg => messageHistory.push(msg.message_id));
+                        newOrder.neon = msg.text;
+                        newOrder.power = neonInfo.power
+                        return
+                        // bot.deleteMessage(userID, userMsg);
+                        // clearChat(userID, messageHistory);
+                    } else {
+                        // clearChat(userID, messageHistory);
+                        // messageHistory = [];
+                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\nНе получилось\n' + aboutNeonCodes), cancelOption);
+                        preview.then(msg => messageHistory.push(msg.message_id));
+                        // const botMsg = botSendMessage(chatId, 'Не получилось\n' + aboutNeonCodes, cancelOption)
+                        // botMsg.then(msg => messageHistory.push(msg.message_id));
+                        return
+                        // bot.deleteMessage(userID, userMsg);
+                    }
+
+                }
+                if (msg.text === 'Отменить') {
+                    bot.deleteMessage(userID, userMsg);
+                    const botMsg = botSendMessage(userID, "Заказ не создан", managerMenu);
+                    botMsg.then(msg => manager(userID, [msg.message_id]));
+                    await clearChat(userID, messageHistory);
+                    return bot.removeListener('message', dataListener);
+                }
+            }
+        })
+    } catch (e) {
+        return console.log(e)
+    }
+}
+
+
+//Проверка отправленного кода
+const neonCalc = async (code) => {
+    let res = {
+        neon: [],
+        power: 0
+    }
+    let colorCodes = {
+        'к': 'красный',
+        'с': 'синий',
+        'з': 'зелёный',
+        'о': 'оранжевый',
+        'ж': 'желтый',
+        'г': 'голубой',
+        'р': 'розовый',
+        'б': 'берюзовый',
+        'х': 'холодный белый',
+        'т': 'тёплый белый'
+    };
+    let codes = code.split(' ');
+    for (let i = 0; i < codes.length; i++) {
+        let neonWidth = codes[i][0];
+        let colorCode = codes[i][1];
+        let neonLength = codes[i].slice(2);
+        if (neonWidth == '6' || neonWidth == '8') {
+            res.neon.push(neonWidth + 'мм')
+        } else return;
+        if (colorCodes[colorCode]) {
+            res.neon[i] += ' ' + colorCodes[colorCode]
+        } else return;
+        if (!isNaN(+neonLength) && +neonLength > 0) {
+            res.neon[i] += ` длина ${neonLength * 1}м`;
+            res.power += neonLength * 14
+        } else return;
+    }
+    return res
+}
+
+
+const createOrder2 = async (userID) => {
     let messageHistory = [];
     const infoText = "Отправь отдельно:\nМакет(.cdr). Название заказа берется из названия файла!\nИзображение\nОписание"
     const newOrder = {
@@ -331,7 +480,7 @@ const createOrder = async (userID) => {
                         messageHistory = [orders[0].message_id];
                         // await orders.forEach(order => messageHistory.push(order.message_id))
                         const botMsg = botSendMessage(userID, `Заказ создан`, managerMenu);
-                        botMsg.then(msg => { 
+                        botMsg.then(msg => {
                             messageHistory.push(msg.message_id);
                             console.log(messageHistory);
                             manager(userID, messageHistory);
@@ -355,8 +504,15 @@ const isCDRfile = (name) => {
 const showOrders = async (chatId, parameters, cartOptions) => {
     try {
         const foundOrders = await Order.findAll({ where: parameters, order: ['createdAt'] });
-        const orders = sendOrders(chatId, foundOrders, cartOptions);
-        return orders.then(el => el);
+        if (foundOrders.length == 0) {
+            const botMsg = botSendMessage(chatId, "Тут пусто", managerMenu);
+            return botMsg.then(msg => {
+                return [msg];
+            });
+
+        }
+        return sendOrders(chatId, foundOrders, cartOptions);
+        // return orders.then(el => el);
     } catch (e) {
         return console.log(e)
     }
@@ -365,15 +521,10 @@ const showOrders = async (chatId, parameters, cartOptions) => {
 //Отправить заказы в бот-чат
 const sendOrders = async (chatId, orders, cartOptions) => {
     let datas = [];
-    if (orders.length === 0) {
-        const botMsg = botSendMessage(chatId, "Тут пусто", managerMenu);
-        botMsg.then(msg => datas.push(msg.message_id));
-        return datas
-    }
     try {
         for (let order of orders) {
             const orderCart = await createOrderCart(chatId, order, cartOptions);
-            // console.log(orderCart)
+            console.log(orderCart)
             datas.push(orderCart);
         }
         return datas
