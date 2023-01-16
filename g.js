@@ -53,3 +53,4 @@ const aboutNeonCodes = `Пример 6к3.5.
 ` 
 
 console.log(checkNeonCode('6к4'));
+

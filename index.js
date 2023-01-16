@@ -116,7 +116,7 @@ const start = async () => {
         await sequelize.authenticate();
         await sequelize.sync();
         users.managers.forEach(user => bot.sendMessage(user.id, 'Погнали!'));
-        users.managers.forEach(user => createOrder(user.id));
+        users.managers.forEach(user => manager(user.id));
     } catch (e) {
         console.log(e);
     }
@@ -285,11 +285,30 @@ const createOrder = async (userID) => {
     const newOrder = {
         manager_id: userID,
         // file_id: null,
-        // description: null,
     }
     let orderPreview = {
         description: '',
+    };
+    //Кнопки димера
+    const dimerbuttons = {
+        reply_markup: JSON.stringify({
+            keyboard: [
+                [{ text: 'Без диммера' }],
+                [{ text: 'Диммер кнопочный ДК' }],
+                [{ text: 'Диммер пульт' }],
+                [{ text: 'Диммер крутилка' }],
+                [{ text: 'Отменить' }],
+            ],
+        })
     }
+
+    const aboutDescription = `Отправь оставшуюся информацию
+    1. Место вывода провода:(на словах или на картинке во вложении);
+    2. Общая длина провода от вывески: (нужно понимать, что ставится акустический прозрачный провод до блока, после блока белый или черный провод с выключателем и вилкой (длина такого провода всегда идет 1,8 метра), так же можно сделать подключение сразу в 220 вольт без выключателя и вилки (тут уже длина по желанию). Можно указать просто: комплект «стандарт», это значит, что идет 1 метр акустического провода - блок питания и кабель с выключателем и вилкой.
+    3. Отверстия: (Для окон или для стены. Для стены делаются отверстия в макете.
+    4. Фурнитура: (тросик, дистанционные держатели или просто саморезы с дюбелями)
+    5. Коментарии и пояснения(если требуется)`
+
     try {
         const botMsg = botSendMessage(userID, infoText, cancelOption);
         botMsg.then(msg => messageHistory.push(msg.message_id));
@@ -298,6 +317,7 @@ const createOrder = async (userID) => {
             newOrder.manager_name = msg.from.username;
             if (chatId == userID) {
                 const userMsg = msg.message_id;
+                // Получение изображения
                 if (!newOrder.img_id && msg.text !== 'Отменить') {
                     if (!!msg.photo) {
                         clearChat(userID, messageHistory);
@@ -305,10 +325,8 @@ const createOrder = async (userID) => {
                         const HDPhoto = msg.photo.length - 1;
                         newOrder.img_id = msg.photo[HDPhoto].file_id;
                         bot.deleteMessage(userID, userMsg);
-                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI('Изображение загружено!\nОтправь название заказа(называй осмыслено!)'), cancelOption);
+                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI('Изображение загружено!\nОтправь Номер сделки/Телефон:'), cancelOption);
                         preview.then(msg => messageHistory.push(msg.message_id));
-                        // const botMsg = botSendMessage(userID, `Отправь название заказа`, cancelOption);
-                        // botMsg.then(msg => messageHistory.push(msg.message_id));
                         return;
                     } else {
                         await clearChat(userID, messageHistory);
@@ -319,43 +337,98 @@ const createOrder = async (userID) => {
                         return;
                     };
                 }
+                // Получение номера сделки или номера телефона
+                if (!newOrder.number && msg.text !== 'Отменить') {
+                    bot.deleteMessage(userID, userMsg)
+                    clearChat(userID, messageHistory);
+                    messageHistory = [];
+                    newOrder.number = msg.text;
+                    orderPreview.description = `<b>Менеджер:</b> <a href="tg://user?id=${newOrder.manager_id}">${newOrder.manager_name}</a>\n<b>Номер сделки:</b> <i>${newOrder.number}</i>\n`;
+                    const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\n' + 'Отправь название заказа(называй осмыслено!)'), cancelOption);
+                    preview.then(msg => messageHistory.push(msg.message_id));
+                    return
+                }
+                // Получение названия заказа
                 if (!newOrder.order_name && msg.text !== 'Отменить') {
                     bot.deleteMessage(userID, userMsg)
                     clearChat(userID, messageHistory);
                     messageHistory = [];
                     newOrder.order_name = msg.text;
-                    orderPreview.description = `<b>Название заказа:</b> <i>${newOrder.order_name}</i>\n`;
+                    orderPreview.description += `<b>Название заказа:</b> <i>${newOrder.order_name}</i>\n`;
                     const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\n' + aboutNeonCodes), cancelOption);
                     preview.then(msg => messageHistory.push(msg.message_id));
-                    // const botMsg = botSendMessage(userID, aboutNeonCodes, cancelOption);
-                    // botMsg.then(msg => messageHistory.push(msg.message_id));
                     return
                 }
+                // получение информации о неоне
                 if (!newOrder.neon && msg.text !== 'Отменить') {
                     clearChat(userID, messageHistory);
                     messageHistory = [];
                     const neonInfo = await neonCalc(msg.text);
                     bot.deleteMessage(userID, userMsg);
                     if (neonInfo !== undefined) {
-                        orderPreview.description += '<b>Неон:</b> ' + neonInfo.neon + '\n<b>Блок:</b>' + neonInfo.power + 'W';
-                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description), cancelOption);
+                        orderPreview.description += '<b>Неон:</b> ' + neonInfo.neon.join(', ') + '\n<b>Блок:</b>' + neonInfo.power + 'W';
+                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\n' + 'Отправь информацию про димер\nДиммер кнопочный ДК - до 3х метров \nДиммер пульт - от 3х метров до 15 \nДиммер крутилка от 3х метров до 15'), dimerbuttons);
                         preview.then(msg => messageHistory.push(msg.message_id));
                         newOrder.neon = msg.text;
-                        newOrder.power = neonInfo.power
+                        newOrder.power = neonInfo.power;
                         return
-                        // bot.deleteMessage(userID, userMsg);
-                        // clearChat(userID, messageHistory);
                     } else {
-                        // clearChat(userID, messageHistory);
-                        // messageHistory = [];
                         const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\nНе получилось\n' + aboutNeonCodes), cancelOption);
                         preview.then(msg => messageHistory.push(msg.message_id));
-                        // const botMsg = botSendMessage(chatId, 'Не получилось\n' + aboutNeonCodes, cancelOption)
-                        // botMsg.then(msg => messageHistory.push(msg.message_id));
                         return
-                        // bot.deleteMessage(userID, userMsg);
                     }
 
+                };
+                // Получение информации о димере
+                if (!newOrder.dimer && msg.text !== 'Отменить') {
+                    if (
+                        msg.text == 'Без диммера' ||
+                        msg.text == 'Диммер кнопочный ДК' ||
+                        msg.text == 'Диммер пульт' ||
+                        msg.text == 'Диммер крутилка'
+                    ) {
+                        bot.deleteMessage(userID, userMsg)
+                        clearChat(userID, messageHistory);
+                        messageHistory = [];
+                        newOrder.dimer = msg.text;
+                        orderPreview.description += `\n<b>Диммер:</b> <i>${newOrder.dimer}</i>\n`;
+                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\n' + aboutDescription), cancelOption);
+                        preview.then(msg => messageHistory.push(msg.message_id));
+                        return
+                    } else {
+                        await clearChat(userID, messageHistory);
+                        messageHistory = [];
+                        bot.deleteMessage(userID, userMsg)
+                        const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\nИспользуй кнопки для выбора\n'), dimerbuttons);
+                        preview.then(msg => messageHistory.push(msg.message_id));
+                        return
+                    };
+                };
+                // Получение остальной информации
+                if (!newOrder.description && msg.text !== 'Отменить') {
+                    bot.deleteMessage(userID, userMsg)
+                    clearChat(userID, messageHistory);
+                    messageHistory = [];
+                    newOrder.description = msg.text;
+                    orderPreview.description += `<b>Описание заказа:</b> <i>${newOrder.description}</i>\n`;
+                    const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\n' + 'Укажи через сколько дней готовность! Где 0 это сегодня, 1 - завтра и т.д.'), cancelOption);
+                    preview.then(msg => messageHistory.push(msg.message_id));
+                    return
+                }
+
+                // Получение информации о готовности заказа
+                if(!newOrder.lastDay && msg.text !== 'Отменить') {
+                    const today = new Date();
+                    newOrder.lastDay = new Date(today.setDate(today.getDate() + +msg.text))
+                    newOrder.file_id = 'kjj'
+                    bot.deleteMessage(userID, userMsg)
+                    clearChat(userID, messageHistory);
+                    messageHistory = [];
+                    orderPreview.description += `<b>Готовность:</b> <i>${newOrder.lastDay}</i>\n`;
+                    const preview = botSendPhoto(userID, newOrder.img_id, encodeURI(orderPreview.description + '\n\n\n' + 'ГОТОВО!'), managerMenu);
+                    const order = await Order.create(newOrder); 
+                    preview.then(msg => manager(userID, [msg.message_id]));
+                    return bot.removeListener('message', dataListener);
                 }
                 if (msg.text === 'Отменить') {
                     bot.deleteMessage(userID, userMsg);
@@ -371,12 +444,14 @@ const createOrder = async (userID) => {
     }
 }
 
+const today = new Date();
+console.log(today);
 
 //Проверка отправленного кода
 const neonCalc = async (code) => {
     let res = {
         neon: [],
-        power: 0
+        power: 0,
     }
     let colorCodes = {
         'к': 'красный',
@@ -406,7 +481,26 @@ const neonCalc = async (code) => {
             res.power += neonLength * 14
         } else return;
     }
-    return res
+    if (res.power < 24) {
+        res.power = 24
+        return res
+    }
+    if (res.power < 36 && res.power >= 24) {
+        res.power = 36
+        return res
+    }
+    if (res.power < 60 && res.power >= 36) {
+        res.power = 60
+        return res
+    }
+    if (res.power < 100 && res.power >= 60) {
+        res.power = 100
+        return res
+    }
+    if (res.power >= 100) {
+        res.power = 150
+        return res
+    }
 }
 
 
